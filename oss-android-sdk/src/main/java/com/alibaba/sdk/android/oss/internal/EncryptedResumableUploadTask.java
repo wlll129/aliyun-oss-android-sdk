@@ -1,17 +1,17 @@
 package com.alibaba.sdk.android.oss.internal;
 
 import android.os.ParcelFileDescriptor;
-import android.text.TextUtils;
 
 import com.alibaba.sdk.android.oss.ClientException;
+import com.alibaba.sdk.android.oss.OSSEncryptionClient;
+import com.alibaba.sdk.android.oss.OSSEncryptionImpl;
 import com.alibaba.sdk.android.oss.ServiceException;
+import com.alibaba.sdk.android.oss.TaskCancelException;
 import com.alibaba.sdk.android.oss.callback.OSSCompletedCallback;
 import com.alibaba.sdk.android.oss.common.OSSLog;
 import com.alibaba.sdk.android.oss.common.utils.BinaryUtil;
-import com.alibaba.sdk.android.oss.common.utils.OSSSharedPreferences;
 import com.alibaba.sdk.android.oss.common.utils.OSSUtils;
-import com.alibaba.sdk.android.oss.model.AbortMultipartUploadRequest;
-import com.alibaba.sdk.android.oss.model.CompleteMultipartUploadResult;
+import com.alibaba.sdk.android.oss.crypto.MultipartUploadCryptoContext;
 import com.alibaba.sdk.android.oss.model.InitiateMultipartUploadRequest;
 import com.alibaba.sdk.android.oss.model.InitiateMultipartUploadResult;
 import com.alibaba.sdk.android.oss.model.ListPartsRequest;
@@ -20,8 +20,11 @@ import com.alibaba.sdk.android.oss.model.PartETag;
 import com.alibaba.sdk.android.oss.model.PartSummary;
 import com.alibaba.sdk.android.oss.model.ResumableUploadRequest;
 import com.alibaba.sdk.android.oss.model.ResumableUploadResult;
+import com.alibaba.sdk.android.oss.model.UploadPartRequest;
+import com.alibaba.sdk.android.oss.model.UploadPartResult;
 import com.alibaba.sdk.android.oss.network.ExecutionContext;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -30,39 +33,25 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.io.RandomAccessFile;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
-/**
- * Created by jingdan on 2017/10/30.
- */
+public class EncryptedResumableUploadTask extends ResumableUploadTask {
 
-public class ResumableUploadTask extends BaseMultipartUploadTask<ResumableUploadRequest,
-        ResumableUploadResult> implements Callable<ResumableUploadResult> {
+    private OSSEncryptionImpl encryptionClient;
+    private MultipartUploadCryptoContext cryptoContext;
 
-    protected File mRecordFile;
-    protected List<Integer> mAlreadyUploadIndex = new ArrayList<Integer>();
-    private OSSSharedPreferences mSp;
-    private File mCRC64RecordFile;
-
-    private ResumableUploadRequest.ExceptionTerminationMode exceptionTerminationMode;
-
-    public ResumableUploadTask(ResumableUploadRequest request,
-                               OSSCompletedCallback<ResumableUploadRequest, ResumableUploadResult> completedCallback,
-                               ExecutionContext context, InternalRequestOperation apiOperation) {
-        super(apiOperation, request, completedCallback, context);
-        mSp = OSSSharedPreferences.instance(mContext.getApplicationContext());
-        exceptionTerminationMode = request.getExceptionTerminationMode();
+    public EncryptedResumableUploadTask(ResumableUploadRequest request, OSSCompletedCallback<ResumableUploadRequest, ResumableUploadResult> completedCallback, ExecutionContext context, InternalRequestOperation apiOperation, OSSEncryptionImpl encryptionClient) {
+        super(request, completedCallback, context, apiOperation);
+        this.encryptionClient = encryptionClient;
     }
 
     @Override
     protected void initMultipartUploadId() throws IOException, ClientException, ServiceException {
-
         Map<Integer, Long> recordCrc64 = null;
 
         if (!OSSUtils.isEmptyString(mRequest.getRecordDirectory())) {
@@ -97,6 +86,27 @@ public class ResumableUploadTask extends BaseMultipartUploadTask<ResumableUpload
             OSSLog.logDebug("[initUploadId] - mUploadId : " + mUploadId);
 
             if (!OSSUtils.isEmptyString(mUploadId)) {
+                String cryptoContextFilePath = mRequest.getRecordDirectory() + File.separator + mUploadId + "cryptoContext";
+                FileInputStream cryptoContextFileInputStream = new FileInputStream(cryptoContextFilePath);
+                ObjectInputStream cryptoContextObjectInputStream = new ObjectInputStream(cryptoContextFileInputStream);
+                try {
+                    this.cryptoContext = (MultipartUploadCryptoContext) cryptoContextObjectInputStream.readObject();
+                } catch (ClassNotFoundException e) {
+                    OSSLog.logThrowable2Local(e);
+                } finally {
+                    if (cryptoContextFileInputStream != null) {
+                        cryptoContextFileInputStream.close();
+                    }
+                }
+                if (this.cryptoContext == null) {
+                    mRecordFile.delete();
+                    mUploadId = null;
+                    mRecordFile = null;
+                }
+            }
+
+            if (!OSSUtils.isEmptyString(mUploadId)) {
+
                 if (mCheckCRC64) {
                     String filePath = mRequest.getRecordDirectory() + File.separator + mUploadId;
                     File crc64Record = new File(filePath);
@@ -116,6 +126,7 @@ public class ResumableUploadTask extends BaseMultipartUploadTask<ResumableUpload
                         }
                     }
                 }
+
 
                 boolean isTruncated = false;
                 int nextPartNumberMarker = 0;
@@ -159,16 +170,6 @@ public class ResumableUploadTask extends BaseMultipartUploadTask<ResumableUpload
                                 throw new ClientException("current part size " + part.getSize() + " setting is inconsistent with PartSize : " + partSize + " or lastPartSize : " + mLastPartSize);
                             }
 
-//                            if (part.getPartNumber() == partTotalNumber){
-//                                if (part.getSize() != mLastPartSize){
-//                                    throw new ClientException("current part size " + partSize + " setting is inconsistent with PartSize : " + mPartAttr[0] + " or lastPartSize : " + mLastPartSize);
-//                                }
-//                            }else{
-//                                if (part.getSize() != partSize){
-//                                    throw new ClientException("current part size " + partSize + " setting is inconsistent with PartSize : " + mPartAttr[0] + " or lastPartSize : " + mLastPartSize);
-//                                }
-//                            }
-
                             mPartETags.add(partETag);
                             mUploadedLength += part.getSize();
                             mAlreadyUploadIndex.add(part.getPartNumber());
@@ -196,10 +197,14 @@ public class ResumableUploadTask extends BaseMultipartUploadTask<ResumableUpload
         }
 
         if (OSSUtils.isEmptyString(mUploadId)) {
+            cryptoContext = new MultipartUploadCryptoContext();
+            cryptoContext.setPartSize(mRequest.getPartSize());
+            cryptoContext.setDataSize(mFileLength);
+
             InitiateMultipartUploadRequest init = new InitiateMultipartUploadRequest(
                     mRequest.getBucketName(), mRequest.getObjectKey(), mRequest.getMetadata());
 
-            InitiateMultipartUploadResult initResult = mApiOperation.initMultipartUpload(init, null).getResult();
+            InitiateMultipartUploadResult initResult = encryptionClient.initMultipartUpload(init, cryptoContext);
 
             mUploadId = initResult.getUploadId();
 
@@ -207,6 +212,12 @@ public class ResumableUploadTask extends BaseMultipartUploadTask<ResumableUpload
                 BufferedWriter bw = new BufferedWriter(new FileWriter(mRecordFile));
                 bw.write(mUploadId);
                 bw.close();
+
+                String cryptoContextFilePath = mRequest.getRecordDirectory() + File.separator + mUploadId + "cryptoContext";
+                FileOutputStream fos = new FileOutputStream(cryptoContextFilePath);
+                ObjectOutputStream oos = new ObjectOutputStream(fos);
+
+                oos.writeObject(cryptoContext);
             }
         }
 
@@ -214,160 +225,83 @@ public class ResumableUploadTask extends BaseMultipartUploadTask<ResumableUpload
     }
 
     @Override
-    protected ResumableUploadResult doMultipartUpload() throws IOException, ClientException, ServiceException, InterruptedException {
+    protected void uploadPart(int readIndex, int byteCount, int partNumber) {
+        RandomAccessFile raf = null;
+        InputStream inputStream = null;
+        BufferedInputStream bufferedInputStream = null;
+        try {
 
-        long tempUploadedLength = mUploadedLength;
-        checkCancel();
-//        int[] mPartAttr = new int[2];
-//        checkPartSize(mPartAttr);
-        int readByte = mPartAttr[0];
-        final int partNumber = mPartAttr[1];
-
-        if (mPartETags.size() > 0 && mAlreadyUploadIndex.size() > 0) { //revert progress
-            if (mUploadedLength > mFileLength) {
-                throw new ClientException("The uploading file is inconsistent with before");
-            }
-
-//            long firstPartSize = mPartETags.get(0).getPartSize();
-//            OSSLog.logDebug("[initUploadId] - firstPartSize : " + firstPartSize);
-//            if (firstPartSize > 0 && firstPartSize != readByte && firstPartSize < mFileLength) {
-//                throw new ClientException("current part size " + readByte + " setting is inconsistent with before " + firstPartSize);
-//            }
-
-            long revertUploadedLength = mUploadedLength;
-
-            if (!TextUtils.isEmpty(mSp.getStringValue(mUploadId))) {
-                revertUploadedLength = Long.valueOf(mSp.getStringValue(mUploadId));
-            }
-
-            if (mProgressCallback != null) {
-                mProgressCallback.onProgress(mRequest, revertUploadedLength, mFileLength);
-            }
-
-            mSp.removeKey(mUploadId);
-        }
-        //已经运行的任务需要添加已经上传的任务数量
-        mRunPartTaskCount = mPartETags.size();
-
-        for (int i = 0; i < partNumber; i++) {
-            if (exceptionTerminationMode == ResumableUploadRequest.ExceptionTerminationMode.EXCEPTION) {
-                checkException();
-            }
-            if (mAlreadyUploadIndex.size() != 0 && mAlreadyUploadIndex.contains(i + 1)) {
-                continue;
-            }
-
-            if (mPoolExecutor != null) {
-                //need read byte
-                if (i == partNumber - 1) {
-                    readByte = (int) (mFileLength - tempUploadedLength);
-                }
-                final int byteCount = readByte;
-                final int readIndex = i;
-                tempUploadedLength += byteCount;
-                mPoolExecutor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        uploadPart(readIndex, byteCount, partNumber);
-                    }
-                });
-            }
-        }
-
-        if (checkWaitCondition(partNumber)) {
-            synchronized (mLock) {
-                mLock.wait();
-            }
-        }
-
-        checkException();
-        //complete sort
-        CompleteMultipartUploadResult completeResult = completeMultipartUploadResult();
-        ResumableUploadResult result = null;
-        if (completeResult != null) {
-            result = new ResumableUploadResult(completeResult);
-        }
-        if (mRecordFile != null) {
-            mRecordFile.delete();
-        }
-        if (mCRC64RecordFile != null) {
-            mCRC64RecordFile.delete();
-        }
-
-        releasePool();
-        return result;
-    }
-
-    @Override
-    protected void checkException() throws IOException, ServiceException, ClientException {
-        if (mContext.getCancellationHandler().isCancelled()) {
-            if (mRequest.deleteUploadOnCancelling()) {
-                abortThisUpload();
-                if (mRecordFile != null) {
-                    mRecordFile.delete();
-                }
-            } else {
-                if (mPartETags != null && mPartETags.size() > 0 && mCheckCRC64 && mRequest.getRecordDirectory() != null) {
-                    Map<Integer, Long> maps = new HashMap<Integer, Long>();
-                    for (PartETag eTag : mPartETags) {
-                        maps.put(eTag.getPartNumber(), eTag.getCRC64());
-                    }
-                    ObjectOutputStream oot = null;
-                    try {
-                        String filePath = mRequest.getRecordDirectory() + File.separator + mUploadId;
-                        mCRC64RecordFile = new File(filePath);
-                        if (!mCRC64RecordFile.exists()) {
-                            mCRC64RecordFile.createNewFile();
-                        }
-                        oot = new ObjectOutputStream(new FileOutputStream(mCRC64RecordFile));
-                        oot.writeObject(maps);
-                    } catch (IOException e) {
-                        OSSLog.logThrowable2Local(e);
-                    } finally {
-                        if (oot != null) {
-                            oot.close();
-                        }
-                    }
-                }
-            }
-        }
-        super.checkException();
-    }
-
-    @Override
-    protected void abortThisUpload() {
-        if (mUploadId != null) {
-            AbortMultipartUploadRequest abort = new AbortMultipartUploadRequest(
-                    mRequest.getBucketName(), mRequest.getObjectKey(), mUploadId);
-            mApiOperation.abortMultipartUpload(abort, null).waitUntilFinished();
-        }
-    }
-
-    @Override
-    protected void processException(Exception e) {
-        synchronized (mLock) {
-            mPartExceptionCount++;
-            mUploadException = e;
-            OSSLog.logThrowable2Local(e);
             if (mContext.getCancellationHandler().isCancelled()) {
-                if (!mIsCancel) {
-                    mIsCancel = true;
-                    mLock.notify();
-                }
+                mPoolExecutor.getQueue().clear();
+                return;
             }
-            if (exceptionTerminationMode == ResumableUploadRequest.ExceptionTerminationMode.EXCEPTION ||
-                    mPartETags.size() == (mRunPartTaskCount - mPartExceptionCount)) {
-                notifyMultipartThread();
-            }
-        }
-    }
 
-    @Override
-    protected void uploadPartFinish(PartETag partETag) throws Exception {
-        if (mContext.getCancellationHandler().isCancelled()) {
-            if (!mSp.contains(mUploadId)) {
-                mSp.setStringValue(mUploadId, String.valueOf(mUploadedLength));
-                onProgressCallback(mRequest, mUploadedLength, mFileLength);
+            synchronized (mLock) {
+                mRunPartTaskCount++;
+            }
+
+            preUploadPart(readIndex, byteCount, partNumber);
+
+            byte[] partContent = new byte[byteCount];
+            long skip = readIndex * mRequest.getPartSize();
+            if (mUploadUri != null) {
+                inputStream = mContext.getApplicationContext().getContentResolver().openInputStream(mUploadUri);
+                bufferedInputStream = new BufferedInputStream(inputStream);
+                bufferedInputStream.skip(skip);
+                bufferedInputStream.read(partContent, 0, byteCount);
+            } else {
+                raf = new RandomAccessFile(mUploadFile, "r");
+
+                raf.seek(skip);
+                raf.readFully(partContent, 0, byteCount);
+            }
+
+            UploadPartRequest uploadPart = new UploadPartRequest(
+                    mRequest.getBucketName(), mRequest.getObjectKey(), mUploadId, readIndex + 1);
+            uploadPart.setPartContent(partContent);
+            uploadPart.setMd5Digest(BinaryUtil.calculateBase64Md5(partContent));
+            uploadPart.setCRC64(mRequest.getCRC64());
+            UploadPartResult uploadPartResult = encryptionClient.uploadPart(uploadPart, cryptoContext);
+            //check isComplete
+            synchronized (mLock) {
+                PartETag partETag = new PartETag(uploadPart.getPartNumber(), uploadPartResult.getETag());
+                partETag.setPartSize(byteCount);
+                if (mCheckCRC64) {
+                    partETag.setCRC64(uploadPartResult.getClientCRC());
+                }
+
+                mPartETags.add(partETag);
+                mUploadedLength += byteCount;
+
+                uploadPartFinish(partETag);
+
+                if (mContext.getCancellationHandler().isCancelled()) {
+                    if (mPartETags.size() == (mRunPartTaskCount - mPartExceptionCount)) {
+                        TaskCancelException e = new TaskCancelException("multipart cancel");
+
+                        throw new ClientException(e.getMessage(), e, true);
+                    }
+                } else {
+                    if (mPartETags.size() == (partNumber - mPartExceptionCount)) {
+                        notifyMultipartThread();
+                    }
+                    onProgressCallback(mRequest, mUploadedLength, mFileLength);
+                }
+
+            }
+
+        } catch (Exception e) {
+            processException(e);
+        } finally {
+            try {
+                if (raf != null)
+                    raf.close();
+                if (bufferedInputStream != null)
+                    bufferedInputStream.close();
+                if (inputStream != null)
+                    inputStream.close();
+            } catch (IOException e) {
+                OSSLog.logThrowable2Local(e);
             }
         }
     }

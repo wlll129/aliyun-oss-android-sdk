@@ -108,10 +108,10 @@ import java.net.URISyntaxException;
  */
 class OSSImpl implements OSS {
 
-    private URI endpointURI;
+    protected URI endpointURI;
     private OSSCredentialProvider credentialProvider;
-    private InternalRequestOperation internalRequestOperation;
-    private ExtensionRequestOperation extensionRequestOperation;
+    protected InternalRequestOperation internalRequestOperation;
+    protected ExtensionRequestOperation extensionRequestOperation;
     private ClientConfiguration conf;
 
     /**

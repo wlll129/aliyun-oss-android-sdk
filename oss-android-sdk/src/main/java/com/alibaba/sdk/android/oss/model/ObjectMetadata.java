@@ -282,6 +282,10 @@ public class ObjectMetadata {
         return Collections.unmodifiableMap(metadata);
     }
 
+    public void removeHeader(Object key) {
+        metadata.remove(key);
+    }
+
     @Override
     public String toString() {
         String s;

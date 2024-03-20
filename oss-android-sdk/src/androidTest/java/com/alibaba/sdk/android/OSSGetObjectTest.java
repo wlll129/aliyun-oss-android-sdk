@@ -10,7 +10,9 @@ import com.alibaba.sdk.android.oss.ServiceException;
 import com.alibaba.sdk.android.oss.callback.OSSProgressCallback;
 import com.alibaba.sdk.android.oss.common.OSSLog;
 import com.alibaba.sdk.android.oss.common.utils.BinaryUtil;
+import com.alibaba.sdk.android.oss.common.utils.DateUtil;
 import com.alibaba.sdk.android.oss.common.utils.IOUtils;
+import com.alibaba.sdk.android.oss.common.utils.OSSUtils;
 import com.alibaba.sdk.android.oss.internal.OSSAsyncTask;
 import com.alibaba.sdk.android.oss.model.GetObjectACLRequest;
 import com.alibaba.sdk.android.oss.model.GetObjectACLResult;
@@ -22,6 +24,9 @@ import com.alibaba.sdk.android.oss.model.Range;
 import org.junit.Test;
 
 import java.io.FileOutputStream;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.Assert.*;
@@ -186,6 +191,21 @@ public class OSSGetObjectTest extends BaseTestCase {
         task.waitUntilFinished();
         assertNotNull(getCallback.clientException);
         assertTrue(getCallback.clientException.getMessage().contains("The object key is invalid"));
+    }
+
+    @Test
+    public void testGetObjectWithXianding() {
+        OSSTestConfig.TestGetCallback getCallback = new OSSTestConfig.TestGetCallback();
+
+        GetObjectRequest request = new GetObjectRequest(mBucketName, "file1m");
+        Map<String, String > meta = new HashMap<String, String>();
+        meta.put("If-Modified-Since", DateUtil.formatRfc822Date(new Date()));
+        request.setRequestHeaders(meta);
+
+        OSSAsyncTask task = oss.asyncGetObject(request, getCallback);
+        task.waitUntilFinished();
+
+        assertEquals(getCallback.serviceException.getStatusCode(), 304);
     }
 
     @Test

@@ -67,12 +67,12 @@ public class ResumableDownloadTask<Requst extends ResumableDownloadRequest,
                     return new Thread(runnable, "oss-android-multipart-thread");
                 }
             });
-    private ResumableDownloadRequest mRequest;
-    private InternalRequestOperation mOperation;
+    protected ResumableDownloadRequest mRequest;
+    protected InternalRequestOperation mOperation;
     private OSSCompletedCallback mCompletedCallback;
-    private ExecutionContext mContext;
-    private OSSProgressCallback mProgressCallback;
-    private CheckPoint mCheckPoint;
+    protected ExecutionContext mContext;
+    protected OSSProgressCallback mProgressCallback;
+    protected CheckPoint mCheckPoint;
     protected Object mLock = new Object();
     protected Exception mDownloadException;
     protected long completedPartSize;
@@ -297,7 +297,7 @@ public class ResumableDownloadTask<Requst extends ResumableDownloadRequest,
         return parts;
     }
 
-    private Range correctRange(Range range, long totalSize) {
+    protected Range correctRange(Range range, long totalSize) {
         long start = 0;
         long size = totalSize;
         if (range != null) {
@@ -313,7 +313,7 @@ public class ResumableDownloadTask<Requst extends ResumableDownloadRequest,
         return new Range(start, start + size);
     }
 
-    private void downloadPart(DownloadFileResult downloadResult, DownloadPart part) {
+    protected void downloadPart(DownloadFileResult downloadResult, DownloadPart part) {
 
         RandomAccessFile output = null;
         InputStream content = null;

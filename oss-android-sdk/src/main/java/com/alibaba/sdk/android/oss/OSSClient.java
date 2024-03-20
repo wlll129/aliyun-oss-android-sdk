@@ -101,7 +101,7 @@ import java.io.IOException;
  */
 public class OSSClient implements OSS {
 
-    private OSS mOss;
+    protected OSS mOss;
 
     /**
      * Creates a {@link OSSClient} instance.

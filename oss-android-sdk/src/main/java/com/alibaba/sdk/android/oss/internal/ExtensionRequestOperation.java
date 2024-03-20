@@ -34,14 +34,14 @@ import java.util.concurrent.ThreadFactory;
  */
 public class ExtensionRequestOperation {
 
-    private static ExecutorService executorService =
+    protected static ExecutorService executorService =
             Executors.newFixedThreadPool(OSSConstants.DEFAULT_BASE_THREAD_POOL_SIZE, new ThreadFactory() {
                 @Override
                 public Thread newThread(Runnable r) {
                     return new Thread(r, "oss-android-extensionapi-thread");
                 }
             });
-    private InternalRequestOperation apiOperation;
+    protected InternalRequestOperation apiOperation;
 
     public ExtensionRequestOperation(InternalRequestOperation apiOperation) {
         this.apiOperation = apiOperation;
@@ -156,7 +156,7 @@ public class ExtensionRequestOperation {
         return OSSAsyncTask.wrapRequestTask(executorService.submit(new ResumableDownloadTask(apiOperation, request, completedCallback, executionContext)), executionContext);
     }
 
-    private void setCRC64(OSSRequest request) {
+    protected void setCRC64(OSSRequest request) {
         Enum crc64 = request.getCRC64() != OSSRequest.CRC64Config.NULL ? request.getCRC64() :
                 (apiOperation.getConf().isCheckCRC64() ? OSSRequest.CRC64Config.YES : OSSRequest.CRC64Config.NO);
         request.setCRC64(crc64);

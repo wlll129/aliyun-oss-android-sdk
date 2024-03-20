@@ -54,19 +54,19 @@ public class InternalRequestOperation {
 
     private static final int LIST_PART_MAX_RETURNS = 1000;
     private static final int MAX_PART_NUMBER = 10000;
-    private static ExecutorService executorService =
+    protected static ExecutorService executorService =
             Executors.newFixedThreadPool(OSSConstants.DEFAULT_BASE_THREAD_POOL_SIZE, new ThreadFactory() {
                 @Override
                 public Thread newThread(Runnable r) {
                     return new Thread(r, "oss-android-api-thread");
                 }
             });
-    private volatile URI endpoint;
+    protected volatile URI endpoint;
     private URI service;
     private OkHttpClient innerClient;
-    private Context applicationContext;
+    protected Context applicationContext;
     private OSSCredentialProvider credentialProvider;
-    private int maxRetryCount = OSSConstants.DEFAULT_RETRY_COUNT;
+    protected int maxRetryCount = OSSConstants.DEFAULT_RETRY_COUNT;
     private ClientConfiguration conf;
 
     public InternalRequestOperation(Context context, final URI endpoint, OSSCredentialProvider credentialProvider, ClientConfiguration conf) {
@@ -1041,7 +1041,7 @@ public class InternalRequestOperation {
         return innerClient;
     }
 
-    private void canonicalizeRequestMessage(RequestMessage message, OSSRequest request) {
+    protected void canonicalizeRequestMessage(RequestMessage message, OSSRequest request) {
         Map<String, String> header = message.getHeaders();
 
         if (header.get(OSSHeaders.DATE) == null) {
@@ -1085,7 +1085,7 @@ public class InternalRequestOperation {
         this.credentialProvider = credentialProvider;
     }
 
-    private <Request extends OSSRequest, Result extends OSSResult> void checkCRC64(Request request
+    protected <Request extends OSSRequest, Result extends OSSResult> void checkCRC64(Request request
             , Result result) throws ClientException {
         if (request.getCRC64() == OSSRequest.CRC64Config.YES ? true : false) {
             try {
@@ -1096,7 +1096,7 @@ public class InternalRequestOperation {
         }
     }
 
-    private <Request extends OSSRequest, Result extends OSSResult> void checkCRC64(Request request
+    protected <Request extends OSSRequest, Result extends OSSResult> void checkCRC64(Request request
             , Result result, OSSCompletedCallback<Request, Result> completedCallback) {
         try {
             checkCRC64(request, result);
@@ -1268,7 +1268,6 @@ public class InternalRequestOperation {
         return OSSAsyncTask.wrapRequestTask(executorService.submit(callable), executionContext);
     }
 
-
     public PutObjectTaggingResult syncPutObjectTagging(PutObjectTaggingRequest request) throws ClientException, ServiceException {
         return putObjectTagging(request, null).getResult();
     }
@@ -1366,4 +1365,15 @@ public class InternalRequestOperation {
         return OSSAsyncTask.wrapRequestTask(executorService.submit(callable), executionContext);
     }
 
+    public URI getEndpoint() {
+        return endpoint;
+    }
+
+    public int getMaxRetryCount() {
+        return maxRetryCount;
+    }
+
+    public static ExecutorService getExecutorService() {
+        return executorService;
+    }
 }

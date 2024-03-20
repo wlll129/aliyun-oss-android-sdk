@@ -23,11 +23,22 @@ public class BinaryUtil {
         return new String(Base64.encode(binaryData,Base64.DEFAULT)).trim();
     }
 
+    public static String toBase64StringNoWrap(byte[] binaryData) {
+        return new String(Base64.encode(binaryData,Base64.NO_WRAP)).trim();
+    }
+
     /**
      * decode base64 string
      */
     public static byte[] fromBase64String(String base64String) {
         return Base64.decode(base64String,Base64.DEFAULT);
+    }
+
+    /**
+     * decode base64 string
+     */
+    public static byte[] fromBase64StringNoWrap(String base64String) {
+        return Base64.decode(base64String,Base64.NO_WRAP);
     }
 
     /**
@@ -116,6 +127,13 @@ public class BinaryUtil {
     }
 
     /**
+     * calculate md5 for bytes and base64 string back with no wrap
+     */
+    public static String calculateBase64Md5NoWrap(byte[] binaryData) {
+        return toBase64StringNoWrap(calculateMd5(binaryData));
+    }
+
+    /**
      * calculate md5 for local file and base64 string back
      */
     public static String calculateBase64Md5(String filePath) throws IOException {
@@ -123,10 +141,24 @@ public class BinaryUtil {
     }
 
     /**
+     * calculate md5 for local file and base64 string back with no wrap
+     */
+    public static String calculateBase64Md5NoWrap(String filePath) throws IOException {
+        return toBase64StringNoWrap(calculateMd5(filePath));
+    }
+
+    /**
      * calculate md5 for local file and base64 string back
      */
     public static String calculateBase64Md5(FileDescriptor fileDescriptor) throws IOException {
         return toBase64String(calculateMd5(fileDescriptor));
+    }
+
+    /**
+     * calculate md5 for local file and base64 string back with no wrap
+     */
+    public static String calculateBase64Md5NoWrap(FileDescriptor fileDescriptor) throws IOException {
+        return toBase64StringNoWrap(calculateMd5(fileDescriptor));
     }
 
     /**
