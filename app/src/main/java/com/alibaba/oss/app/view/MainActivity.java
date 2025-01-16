@@ -252,7 +252,7 @@ public class MainActivity extends AppCompatActivity {
                         mIMGService.textWatermark(objectName, text, size);
                     }
                 } catch (NumberFormatException e) {
-                    new AlertDialog.Builder(MainActivity.this).setTitle("错误").setMessage(e.toString()).show();
+                    new AlertDialog.Builder(MainActivity.this).setTitle("error").setMessage(e.toString()).show();
                 }
 
 
@@ -272,7 +272,7 @@ public class MainActivity extends AppCompatActivity {
                     mIMGService.resize(objectName, width, height);
                 } catch (NumberFormatException e) {
                     e.printStackTrace();
-                    new AlertDialog.Builder(MainActivity.this).setTitle("错误").setMessage(e.toString()).show();
+                    new AlertDialog.Builder(MainActivity.this).setTitle("error").setMessage(e.toString()).show();
                 }
 
             }
@@ -458,7 +458,7 @@ public class MainActivity extends AppCompatActivity {
                 imageView.setImageBitmap(bm);*/
                 File file = new File(mPicturePath);
 
-                mUIDisplayer.displayInfo("文件: " + mPicturePath + "\n大小: " + String.valueOf(file.length()));
+                mUIDisplayer.displayInfo("file path: " + mPicturePath + "\nsize: " + String.valueOf(file.length()));
             } catch (IOException e) {
                 e.printStackTrace();
                 mUIDisplayer.displayInfo(e.toString());
@@ -472,65 +472,65 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         if (Config.OSS_ENDPOINT.contains("oss-cn-hangzhou")) {
-            mRegion = "杭州";
+            mRegion = getString(R.string.hangzhou);
             mImgEndpoint = getImgEndpoint();
         } else if (Config.OSS_ENDPOINT.contains("oss-cn-qingdao")) {
-            mRegion = "青岛";
+            mRegion = getString(R.string.qingdao);
             mImgEndpoint = getImgEndpoint();
         } else if (Config.OSS_ENDPOINT.contains("oss-cn-beijing")) {
-            mRegion = "北京";
+            mRegion = getString(R.string.beijing);
             mImgEndpoint = getImgEndpoint();
         } else if (Config.OSS_ENDPOINT.contains("oss-cn-shenzhen")) {
-            mRegion = "深圳";
+            mRegion = getString(R.string.shenzhen);
             mImgEndpoint = getImgEndpoint();
         } else if (Config.OSS_ENDPOINT.contains("oss-us-west-1")) {
-            mRegion = "美国";
+            mRegion = getString(R.string.America);
             mImgEndpoint = getImgEndpoint();
         } else if (Config.OSS_ENDPOINT.contains("oss-cn-shanghai")) {
-            mRegion = "上海";
+            mRegion = getString(R.string.shanghai);
             mImgEndpoint = getImgEndpoint();
         } else {
-            Toast.makeText(MainActivity.this, "错误的区域", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Wrong area", Toast.LENGTH_SHORT).show();
 //            new AlertDialog.Builder(AuthTestActivity.this).setTitle("错误的区域").setMessage(mRegion).show();
         }
     }
 
     protected String getOssEndpoint() {
         String ossEndpoint = "";
-        if (mRegion.equals("杭州")) {
+        if (mRegion.equals(getString(R.string.hangzhou))) {
             ossEndpoint = "http://oss-cn-hangzhou.aliyuncs.com";
-        } else if (mRegion.equals("青岛")) {
+        } else if (mRegion.equals(getString(R.string.qingdao))) {
             ossEndpoint = "http://oss-cn-qingdao.aliyuncs.com";
-        } else if (mRegion.equals("北京")) {
+        } else if (mRegion.equals(getString(R.string.beijing))) {
             ossEndpoint = "http://oss-cn-beijing.aliyuncs.com";
-        } else if (mRegion.equals("深圳")) {
+        } else if (mRegion.equals(getString(R.string.shenzhen))) {
             ossEndpoint = "http://oss-cn-shenzhen.aliyuncs.com";
-        } else if (mRegion.equals("美国")) {
+        } else if (mRegion.equals(getString(R.string.America))) {
             ossEndpoint = "http://oss-us-west-1.aliyuncs.com";
-        } else if (mRegion.equals("上海")) {
+        } else if (mRegion.equals(getString(R.string.shanghai))) {
             ossEndpoint = "http://oss-cn-shanghai.aliyuncs.com";
         } else {
-            new AlertDialog.Builder(MainActivity.this).setTitle("错误的区域").setMessage(mRegion).show();
+            new AlertDialog.Builder(MainActivity.this).setTitle("Wrong area").setMessage(mRegion).show();
         }
         return ossEndpoint;
     }
 
     protected String getImgEndpoint() {
         String imgEndpoint = "";
-        if (mRegion.equals("杭州")) {
+        if (mRegion.equals(getString(R.string.hangzhou))) {
             imgEndpoint = "http://img-cn-hangzhou.aliyuncs.com";
-        } else if (mRegion.equals("青岛")) {
+        } else if (mRegion.equals(getString(R.string.qingdao))) {
             imgEndpoint = "http://img-cn-qingdao.aliyuncs.com";
-        } else if (mRegion.equals("北京")) {
+        } else if (mRegion.equals(getString(R.string.beijing))) {
             imgEndpoint = "http://img-cn-beijing.aliyuncs.com";
-        } else if (mRegion.equals("深圳")) {
+        } else if (mRegion.equals(getString(R.string.shenzhen))) {
             imgEndpoint = "http://img-cn-shenzhen.aliyuncs.com";
-        } else if (mRegion.equals("美国")) {
+        } else if (mRegion.equals(getString(R.string.America))) {
             imgEndpoint = "http://img-us-west-1.aliyuncs.com";
-        } else if (mRegion.equals("上海")) {
+        } else if (mRegion.equals(getString(R.string.shanghai))) {
             imgEndpoint = "http://img-cn-shanghai.aliyuncs.com";
         } else {
-            new AlertDialog.Builder(MainActivity.this).setTitle("错误的区域").setMessage(mRegion).show();
+            new AlertDialog.Builder(MainActivity.this).setTitle("Wrong area").setMessage(mRegion).show();
             imgEndpoint = "";
         }
         return imgEndpoint;
