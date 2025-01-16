@@ -45,9 +45,7 @@ import java.io.InputStream;
 import com.alibaba.sdk.android.oss.common.auth.OSSCustomSignerCredentialProvider;
 import com.alibaba.sdk.android.oss.common.auth.OSSPlainTextAKSKCredentialProvider;
 import com.alibaba.sdk.android.oss.common.utils.OSSUtils;
-import com.tangxiaolv.telegramgallery.GalleryActivity;
 import com.afollestad.materialdialogs.MaterialDialog;
-import com.tangxiaolv.telegramgallery.GalleryConfig;
 
 import static com.alibaba.oss.app.Config.STS_SERVER_URL;
 import static com.alibaba.oss.app.Config.UPLOAD_SUC;
@@ -381,10 +379,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 //打开本地照片库
-                GalleryConfig config = new GalleryConfig.Build()
-                        .singlePhoto(false).build();
-                Intent intent = new Intent(MainActivity.this, GalleryActivity.class);
-                intent.putExtra("GALLERY_CONFIG", config);
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("image/*");
                 startActivityForResult(intent, Config.REQUESTCODE_LOCALPHOTOS);
             }
         });
